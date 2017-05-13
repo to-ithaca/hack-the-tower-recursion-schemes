@@ -27,6 +27,15 @@ object Recurse extends App {
     case Succ(n) => n + 1
   }
 
+  val toNat: Int => Nat[Int] = {
+    case 0 => Zero()
+    case n => Succ(n - 1)  
+  }
+
   val result = cata(number)(toInt)
   println(result)
+  val result2 = ana(5)(toNat)
+  println(result2)
+  val result3 = cata(ana(5)(toNat))(toInt)
+  println(result3)
 }
