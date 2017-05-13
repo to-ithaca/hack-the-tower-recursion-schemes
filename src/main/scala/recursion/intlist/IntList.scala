@@ -26,6 +26,13 @@ object Playground extends App {
     case Cons(h, t) => h + t
   }
 
+  val tail: IntList[(Fix[IntList], Fix[IntList])] => Fix[IntList] = {
+    case Nil() => Fix(Nil())
+    case Cons(h, (t, _)) => t
+  }
+
   val result = cata(list)(sum)
   println(result)
+  val result2 = para(list)(tail)
+  println(result2)
 }

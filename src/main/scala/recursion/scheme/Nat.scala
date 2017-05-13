@@ -22,14 +22,28 @@ object Recurse extends App {
   
   val number: Fix[Nat] = Fix(Succ(Fix(Succ(Fix(Succ(Fix(Zero())))))))
 
-  def toInt: Nat[Int] => Int = {
-    case Zero() => 0
-    case Succ(n) => n + 1
-  }
 
   val toNat: Int => Nat[Int] = {
     case 0 => Zero()
     case n => Succ(n - 1)  
+  }
+
+  val toInt: Nat[Int] => Int = {
+    case Zero() => 0
+    case Succ(n) => n + 1
+  }
+
+  val factorial: Nat[(Fix[Nat], Int)] => Int = {
+    case Zero() => 1
+    case Succ((n, i)) => (cata(n)(toInt) + 1) * i
+  }
+
+  val pred: Nat[(Fix[Nat], Fix[Nat])] => Fix[Nat] = {
+    case Zero() =>
+      Fix(Zero())
+    case Succ((p, n)) =>
+      //println(s"succ ${cata(p)(toInt)} ${cata(n)(toInt)}")
+      p
   }
 
   val result = cata(number)(toInt)
@@ -38,4 +52,10 @@ object Recurse extends App {
   println(result2)
   val result3 = hylo(5)(toInt, toNat)
   println(result3)
+
+
+  val four = ana(4)(toNat)
+  val result4 = para(four)(factorial)
+  println(result4)
+  println(cata(para(ana(5)(toNat))(pred))(toInt))
 }
