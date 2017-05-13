@@ -21,9 +21,9 @@ object LList {
 object Playground extends App {
   val list: Fix[LList[Int, ?]] = Fix(Cons(1, Fix(Cons(2, Fix(Cons(3, Fix(Nil())))))))
 
-  val sum: LList[Int, Int] => Int = {
-    case Nil() => 0
-    case Cons(h, t) => h + t
+  def sum[A](implicit M: Monoid[A]): LList[A, A] => A = {
+    case Nil() => M.empty
+    case Cons(h, t) => h |+| t
   }
 
   val result = cata(list)(sum)
