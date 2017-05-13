@@ -36,6 +36,6 @@ object Recurse extends App {
   println(result)
   val result2 = ana(5)(toNat)
   println(result2)
-  val result3 = cata(ana(5)(toNat))(toInt)
+  val result3 = hylo(5)(toInt, toNat)
   println(result3)
 }

@@ -10,4 +10,8 @@ package object recursion {
   def ana[F[_]: Functor, A](a: A)(coalgebra: A => F[A]): Fix[F] = {
     Fix(coalgebra(a).map(a => ana(a)(coalgebra)))
   }
+
+  def hylo[F[_] : Functor, A, B](a: A)(algebra: F[B] => B, coalgebra: A => F[A]): B = {
+    algebra(coalgebra(a).map(aa => hylo(aa)(algebra, coalgebra)))
+  }
 }
