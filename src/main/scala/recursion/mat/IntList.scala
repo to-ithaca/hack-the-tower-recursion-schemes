@@ -1,8 +1,11 @@
 package recursion
-package intlist
+package mat
 
-import cats._
-import cats.implicits._
+import scalaz._
+import scalaz.Functor
+import matryoshka._
+import matryoshka.implicits._
+import matryoshka.data.Fix
 
 sealed trait IntList[A]
 case class Cons[A](h: Int, tail: A) extends IntList[A]
@@ -52,13 +55,12 @@ object Playground extends App {
     }
   }
 
-  val infiniteStream: Int => IntList[Int] = n => Cons(n, n + 1)
 
   val list1: Fix[IntList] = Fix(Cons(1, Fix(Cons(2, Fix(Cons(30, Fix(Nil())))))))
+  val result = list1.prepro(small, sum)
+  println(result)
 
-  val result3 = prepro(list1)(small, sum)
-  println(result3)
+  // val result3 = prepro(list1)(small, sum)
+  // println(result3)
 
-  val result4 = postpro(1)(small, infiniteStream)
-  println(result4)
 }

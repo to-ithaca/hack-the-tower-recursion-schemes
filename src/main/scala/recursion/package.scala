@@ -21,4 +21,12 @@ package object recursion {
       (ffix, a)
     })
   }
+
+  def prepro[F[_]: Functor, A](fix: Fix[F])(trans: F ~> F, algebra: F[A] => A): A = {
+    algebra(trans(fix.unfix).map(ffix => prepro(ffix)(trans, algebra)))
+  }
+
+  def postpro[F[_]: Functor, A](a: A)(trans: F ~> F, coalgebra: A => F[A]): Fix[F] = {
+    Fix(trans(coalgebra(a)).map(aa => postpro(aa)(trans, coalgebra)))
+  }
 }

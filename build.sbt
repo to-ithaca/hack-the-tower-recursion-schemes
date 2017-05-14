@@ -33,7 +33,7 @@ lazy val commonSettings = Seq(
     "org.typelevel" %% "cats-core" % catsVersion,
     "org.typelevel" %% "cats-free" % catsVersion,
     "com.chuusai" %% "shapeless" % "2.3.2",
-
+    "com.slamdata" %% "matryoshka-core" % "0.18.3",
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
   )
