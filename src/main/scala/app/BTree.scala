@@ -71,13 +71,19 @@ object BTree {
     case Fix(Node(l, r)) => Node(\/.left(l), \/.right(r))
   }
 
-  //cata - could probably use a zygomorphism of sorts
-  def zipNeighbours[A]: BTree[A, (A, Fix[BTree[Zipped[A], ?]], A)] => (A, Fix[BTree[Zipped[A], ?]], A) = {
-    case Leaf(i, a) => (a, Fix(Leaf(i, Zipped(None, a, None))), a)
-    case Node((lla, l, lra), (rla, r, rra)) =>
-      val nextr = r.apo[Fix[BTree[Zipped[A], ?]]](modifyLeft(_.copy(l = Some(lra))))
-      val nextl = l.apo[Fix[BTree[Zipped[A], ?]]](modifyRight(_.copy(r = Some(rla))))
-      (lla, Fix(Node[Zipped[A], Fix[BTree[Zipped[A], ?]]](nextl, nextr)), rra)
+  //zygo helper
+  def zipNeighboursHelper[A]: BTree[A, (A, A)] => (A, A) = {
+    case Leaf(i, a) => (a, a)
+    case Node((l, _), (_, r)) => (l, r) 
+  }
+
+  //zygo
+  def zipNeighbours[A]: BTree[A, ((A, A), Fix[BTree[Zipped[A], ?]])] => Fix[BTree[Zipped[A], ?]] = {
+    case Leaf(i, a) => Fix(Leaf(i, Zipped(None, a, None)))
+    case Node(((l, lm), fixl ), ((rm, r), fixr)) => 
+      val nextr = fixr.apo[Fix[BTree[Zipped[A], ?]]](modifyLeft(_.copy(l = Some(lm))))
+      val nextl = fixl.apo[Fix[BTree[Zipped[A], ?]]](modifyRight(_.copy(r = Some(rm))))
+      Fix(Node(nextl, nextr))
   }
 
   //cata
@@ -116,7 +122,8 @@ object Playground extends App {
   val result = (0, 1).ana[Fix[BTree[Int, ?]]](BTree.build(2)(_ => random.nextInt(100) ))
   println(result)
 
-  val (l, zipped, r) = result.cata(BTree.zipNeighbours)
+  //TODO: compose catas together
+  val zipped = result.zygo(BTree.zipNeighboursHelper, BTree.zipNeighbours)
   val flux = zipped.cata(BTree.mapValues[Zipped[Int], Flux, Fix](calcFlux))
   val water0 = flux.cata(BTree.mapValues[Flux, Water, Fix](startWater))
   val water1 = water0.cata(BTree.rivers)
