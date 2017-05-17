@@ -20,7 +20,7 @@ lazy val commonResolvers = Seq(
 
 lazy val buildSettings = Seq(
   scalaOrganization := "org.typelevel",
-  scalaVersion := "2.12.1",
+  scalaVersion := "2.12.0",
   name := "hack-the-tower-recursion-schemes",
   version := "0.1.0-SNAPSHOT"
 )

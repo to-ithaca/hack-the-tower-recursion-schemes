@@ -19,11 +19,16 @@ object IntList {
 
 
 object Playground extends App {
+
   val list: Fix[IntList] = Fix(Cons(1, Fix(Cons(2, Fix(Cons(3, Fix(Nil())))))))
 
   val sum: IntList[Int] => Int = {
-    case Nil() => 0
-    case Cons(h, t) => h + t
+    case Nil() =>
+      println(s"sum 0")
+      0
+    case Cons(h, t) =>
+      println(s"sum $h $t")
+      h + t
   }
 
   val len: IntList[Int] => Int = {
@@ -36,29 +41,27 @@ object Playground extends App {
     case Cons(h, (t, _)) => t
   }
 
-  // val result = cata(list)(sum)
-  // println(result)
-  // val result2 = para(list)(tail)
-  // println(result2)
-
   val small: IntList ~> IntList = new (IntList ~> IntList) {
     def apply[A](l: IntList[A]): IntList[A] = l match {
       case Nil() =>
-        println("nil")
+        println("small nil")
         Nil()
       case c @ Cons(h, t) =>
-        println(c)
+        println(s"small $c")
         if(h < 10) c else Nil()
     }
   }
 
-  val infiniteStream: Int => IntList[Int] = n => Cons(n, n + 1)
+  val infiniteStream: Int => IntList[Int] = n => {
+    println(s"infinite $n")
+    Cons(n, n + 1)
+  }
 
   val list1: Fix[IntList] = Fix(Cons(1, Fix(Cons(2, Fix(Cons(30, Fix(Nil())))))))
 
   val result3 = prepro(list1)(small, sum)
   println(result3)
 
-  val result4 = postpro(1)(small, infiniteStream)
-  println(result4)
+  // val result4 = postpro(1)(small, infiniteStream)
+  // println(result4)
 }

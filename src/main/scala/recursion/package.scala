@@ -29,4 +29,6 @@ package object recursion {
   def postpro[F[_]: Functor, A](a: A)(trans: F ~> F, coalgebra: A => F[A]): Fix[F] = {
     Fix(trans(coalgebra(a)).map(aa => postpro(aa)(trans, coalgebra)))
   }
+
+  //def apo[A](a: A)(f: GCoalgebra[T \/ ?, Base, A])(implicit BF: Functor[Base]): Fix[F] = ???
 }
