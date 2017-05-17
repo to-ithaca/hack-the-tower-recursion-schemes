@@ -59,27 +59,28 @@ object BTree {
     case Node(_, r) => r
   }
 
+  //apo
   def modifyLeft[A](f: A => A): Fix[BTree[A, ?]] => BTree[A, \/[Fix[BTree[A, ?]], Fix[BTree[A, ?]]]] = {
     case Fix(Leaf(i, a)) => Leaf(i, f(a))
     case Fix(Node(l, r)) => Node(\/.right(l), \/.left(r))
   }
 
+  //apo
   def modifyRight[A](f: A => A): Fix[BTree[A, ?]] => BTree[A, \/[Fix[BTree[A, ?]], Fix[BTree[A, ?]]]] = {
     case Fix(Leaf(i, a)) => Leaf(i, f(a))
     case Fix(Node(l, r)) => Node(\/.left(l), \/.right(r))
   }
 
-  //a basic catamorphism
-  def zipNeighbours[A]: BTree[A, Fix[BTree[Zipped[A], ?]]] => Fix[BTree[Zipped[A], ?]] = {
-    case Leaf(i, a) => Fix(Leaf(i, Zipped(None, a, None)))
-    case Node(l, r) =>
-      val lr = l.cata(right)
-      val rl = r.cata(left)
-      val nextr = r.apo[Fix[BTree[Zipped[A], ?]]](modifyLeft(_.copy(l = Some(lr.a))))
-      val nextl = l.apo[Fix[BTree[Zipped[A], ?]]](modifyRight(_.copy(r = Some(rl.a))))
-      Fix(Node[Zipped[A], Fix[BTree[Zipped[A], ?]]](nextl, nextr))
+  //cata - could probably use a zygomorphism of sorts
+  def zipNeighbours[A]: BTree[A, (A, Fix[BTree[Zipped[A], ?]], A)] => (A, Fix[BTree[Zipped[A], ?]], A) = {
+    case Leaf(i, a) => (a, Fix(Leaf(i, Zipped(None, a, None))), a)
+    case Node((lla, l, lra), (rla, r, rra)) =>
+      val nextr = r.apo[Fix[BTree[Zipped[A], ?]]](modifyLeft(_.copy(l = Some(lra))))
+      val nextl = l.apo[Fix[BTree[Zipped[A], ?]]](modifyRight(_.copy(r = Some(rla))))
+      (lla, Fix(Node[Zipped[A], Fix[BTree[Zipped[A], ?]]](nextl, nextr)), rra)
   }
 
+  //cata
   def rivers: BTree[Water, Fix[BTree[Water, ?]]] => Fix[BTree[Water, ?]] = {
     case Leaf(i, a) => Fix(Leaf(i, a))
     case Node(l, r) =>
@@ -115,7 +116,7 @@ object Playground extends App {
   val result = (0, 1).ana[Fix[BTree[Int, ?]]](BTree.build(2)(_ => random.nextInt(100) ))
   println(result)
 
-  val zipped: Fix[BTree[Zipped[Int], ?]] = result.cata(BTree.zipNeighbours)
+  val (l, zipped, r) = result.cata(BTree.zipNeighbours)
   val flux = zipped.cata(BTree.mapValues[Zipped[Int], Flux, Fix](calcFlux))
   val water0 = flux.cata(BTree.mapValues[Flux, Water, Fix](startWater))
   val water1 = water0.cata(BTree.rivers)
