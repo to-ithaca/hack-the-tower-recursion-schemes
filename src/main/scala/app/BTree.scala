@@ -104,30 +104,6 @@ object BTree {
       Fix(Node[Zipped[A], Fix[BTree[Zipped[A], ?]]](rana, lana))
   }
 
-  def histoSomething[A, B](f: A => B, combine: (B, B) => B): BTree[A, Cofree[BTree[A, ?], B]] => B = {
-    case Leaf(i, v) => f(v)
-    case Node(l, r) => (l, r) match {
-          case (Cofree((lp, Leaf(_, lv))), Cofree((rp, Leaf(_, rv)))) => combine(lp, rp)
-          case (Cofree((lp, Leaf(_, lv))), Cofree((rp, Node(rl, rr)))) => combine(lp, rp)
-          case (Cofree((lp, Node(ll, lr))), Cofree((rp, Leaf(_, rv)))) => combine(lp, rp)
-          case (Cofree((lp, Node(ll, lr))), Cofree((rp, Node(rl, rr)))) => combine(lp, rp)
-        }
-  }
-
-  def histoString[A]: BTree[A, Cofree[BTree[A, ?], String]] => String = {
-    case Leaf(i, v) => v.toString
-    case Node(l, r) => (l, r) match {
-          case (Cofree((lp, Leaf(_, lv))), Cofree((rp, Leaf(_, rv)))) => s"lleaf rleaf lp: [$lp] lv: [$lv] rp: [$rp] rv: [$rv] "
-          case (Cofree((lp, Leaf(_, lv))), Cofree((rp, Node(rl, rr)))) => s"lleaf lp: [$lp] lv: [$lv] rp: [$rp] rr: [$rr]"
-          case (Cofree((lp, Node(ll, lr))), Cofree((rp, Leaf(_, rv)))) => s"rleaf lp: [$lp] rp: [$rp] rv: [$rv]"
-          case (Cofree((lp, Node(ll, lr))), Cofree((rp, Node(rl, rr)))) => s"lp: [$lp] rp: [$rp]"
-        }
-  }
-
-  def futu[A, B]: B => BTree[A, Free[BTree[A, ?], B]] = ???
-  def futuString: String => BTree[Double, Free[BTree[Double, ?], String]] = ???
-
-
   def rivers: BTree[Water, Fix[BTree[Water, ?]]] => Fix[BTree[Water, ?]] = {
     case Leaf(i, a) => Fix(Leaf(i, a))
     case Node(l, r) => // we want to set l's right to r and r's left to l
@@ -137,7 +113,7 @@ object BTree {
       val rightl: Either[Fix[BTree[Water, ?]], Fix[BTree[Water, ?]]] = Right(l)
       val rnext = if(lr.flux == Flux.Right) leftr.ana[Fix[BTree[Water, ?]]](modifyLeft(w => w.copy(volume = w.volume + 1))) else r
       val lnext = if(rl.flux == Flux.Left) rightl.ana[Fix[BTree[Water, ?]]](modifyRight(w => w.copy(volume = w.volume + 1))) else l
-      Fix(Node[Water, Fix[BTree[Water, ?]]](rnext, lnext))
+      Fix(Node[Water, Fix[BTree[Water, ?]]](lnext, rnext))
   }
 }
 
@@ -149,8 +125,11 @@ object Playground extends App {
   import matryoshka.implicits._
   import matryoshka.data.free._
 
+  import scala.util.Random
 
-  def calcFlux(z: BTree.Zipped[Double]): Flux = z match {
+  val random = new Random(123)
+
+  def calcFlux(z: BTree.Zipped[Int]): Flux = z match {
     case BTree.Zipped(Some(l), a, Some(r)) => if(l <= r && l < a) Flux.Left else if(r < l && r < a) Flux.Right else Flux.Still
     case BTree.Zipped(Some(l), a, None) => if(l < a) Flux.Left else Flux.Still
     case BTree.Zipped(None, a, Some(r)) => if(r < a) Flux.Right else Flux.Still
@@ -159,26 +138,16 @@ object Playground extends App {
 
   def startWater(f: Flux): Water = Water(f, 0)
 
-  val result = (0, 1).ana[Fix[BTree[Double, ?]]](BTree.build(2)(_.toDouble))
+  val result = (0, 1).ana[Fix[BTree[Int, ?]]](BTree.build(2)(_ => random.nextInt(100) ))
   println(result)
 
-  // val result2 = result.cata(BTree.mapValues[Double, Double, Fix](_.toDouble))
-  // println(result2)
+  val zipped: Fix[BTree[BTree.Zipped[Int], ?]] = result.cata(BTree.zipNeighbours)
+  val flux = zipped.cata(BTree.mapValues[BTree.Zipped[Int], Flux, Fix](calcFlux))
+  val water0 = flux.cata(BTree.mapValues[Flux, Water, Fix](startWater))
+  val water1 = water0.cata(BTree.rivers)
 
-  // val histf = BTree.histoSomething[Double, String](_.toString, _ + " " + _)
-  // val result4 = result.histo(BTree.histoString)
-  // println(result4)
-  // val result5 = result.histo(BTree.zipNeighboursHisto)
-
-  val zipped: Fix[BTree[BTree.Zipped[Double], ?]] = result.cata(BTree.zipNeighbours)
-  val r = zipped.cata(BTree.mapValues[BTree.Zipped[Double], Flux, Fix](calcFlux))
-
-  println(r)
-
-  //monutain ranges!  Given a set of points, find the minimum distance 
-  //could just use Worley noise + a Heaviside and see what we get
-
-  //now for the tricky part... river formation
-  //could seed random rivers with a Heaviside on height
-  //then need to propagate the rivers downwards
+  println(zipped)
+  println(flux)
+  println(water0)
+  println(water1)
 }
