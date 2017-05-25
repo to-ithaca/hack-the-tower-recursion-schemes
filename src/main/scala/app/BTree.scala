@@ -19,6 +19,13 @@ object Flux {
 
 
 case class Water(flux: Flux, volume: Int)
+case class River(path: List[Int], active: Boolean) {
+  def addPoint(i: Int): River = copy(path = i :: path)
+}
+case class RiverTile(flux: Flux, rivers: List[River]) {
+  def markInactive: RiverTile = copy(rivers = rivers.map(_.copy(active = false)))
+  def addRivers(rs: List[River]): RiverTile = copy(rivers = rs ::: rivers)
+}
 
 sealed trait BTree[A, B]
 case class Leaf[A, B](index: Int, value: A) extends BTree[A, B]
@@ -52,6 +59,17 @@ object BTree {
   def left[A]: BTree[A, A] => A = {
     case Leaf(_, a) => a
     case Node(l, _) => l
+  }
+
+
+  def leftIndex[A]: BTree[A, (Int, A)] => (Int, A) = {
+    case Leaf(i, a) => (i, a)
+    case Node(l, _) => l
+  }
+
+  def rightIndex[A]: BTree[A, (Int, A)] => (Int, A) = {
+    case Leaf(i, a) => (i, a)
+    case Node(_, r) => r
   }
 
   def right[A]: BTree[A, A] => A = {
@@ -96,6 +114,49 @@ object BTree {
       val lnext = if(rl.flux == Flux.Left) l.apo[Fix[BTree[Water, ?]]](modifyRight(w => w.copy(volume = w.volume + 1))) else l
       Fix(Node[Water, Fix[BTree[Water, ?]]](lnext, rnext))
   }
+
+
+  def shouldSeed(i: Int): Boolean = i % 2 == 0
+
+  def seedRivers: BTree[Flux, ?] ~> BTree[RiverTile, ?] =
+    new (BTree[Flux, ?] ~> BTree[RiverTile, ?]) {
+      def apply[A](tree: BTree[Flux, A]): BTree[RiverTile, A] = tree match {
+        case Leaf(i, flux) =>
+          if(shouldSeed(i)) Leaf(i, RiverTile(flux, List(River(i :: Nil, true))))
+          else Leaf(i, RiverTile(flux, Nil))
+        case Node(l, r) => Node(l, r)
+      }
+    }
+
+  def flowRivers: BTree[RiverTile, Fix[BTree[RiverTile, ?]]] => Fix[BTree[RiverTile, ?]] = {
+    case Leaf(i, a) => Fix(Leaf(i, a))
+    case Node(l, r) =>
+      val (li, lr) = l.cata(rightIndex)
+      val (ri, rl) = r.cata(leftIndex)
+
+      val lrivers = lr.rivers.filter(_.active).map(_.addPoint(li))
+      val (nextL, nextR) = if(lrivers.nonEmpty && lr.flux == Flux.Right) {
+
+        //remove it from this one
+        val nextL = l.apo[Fix[BTree[RiverTile, ?]]](modifyRight(tile => tile.markInactive))
+        //add it to this one
+        val nextR = r.apo[Fix[BTree[RiverTile, ?]]](modifyLeft(tile => tile.addRivers(lrivers)))
+        (nextL, nextR.cata(flowRivers)) // reflow with inside
+      } else (l, r)
+
+      val rrivers = rl.rivers.filter(_.active).map(_.addPoint(li))
+      val (nextL1, nextR1) = if(rrivers.nonEmpty && rl.flux == Flux.Left) {
+
+        //remove it from this one
+        val nextR0 = nextR.apo[Fix[BTree[RiverTile, ?]]](modifyLeft(tile => tile.markInactive))
+        //add it to this one
+        val nextL0 = nextL.apo[Fix[BTree[RiverTile, ?]]](modifyRight(tile => tile.addRivers(rrivers)))
+        (nextL0, nextR0.cata(flowRivers))
+      } else (nextL, nextR)
+
+      Fix(Node(nextL1, nextR1))
+  }
+  
 }
 
 
@@ -122,14 +183,27 @@ object Playground extends App {
   val result = (0, 1).ana[Fix[BTree[Int, ?]]](BTree.build(2)(_ => random.nextInt(100) ))
   println(result)
 
-  //TODO: compose catas together
   val zipped = result.zygo(BTree.zipNeighboursHelper, BTree.zipNeighbours)
   val flux = zipped.cata(BTree.mapValues[Zipped[Int], Flux, Fix](calcFlux))
-  val water0 = flux.cata(BTree.mapValues[Flux, Water, Fix](startWater))
-  val water1 = water0.cata(BTree.rivers)
+  val seeded = flux.cata[Fix[BTree[RiverTile, ?]]](fix => Fix(BTree.seedRivers[Fix[BTree[RiverTile, ?]]](fix)))
+  val flow = seeded.cata(BTree.flowRivers)
 
   println(zipped)
   println(flux)
-  println(water0)
-  println(water1)
+  println(seeded)
+  println(flow)
 }
+
+/*
+
+ Would be good to come up with a similar approach to Conway's game of life by building the tree one level down
+ So at each level, you could confiden
+
+
+ So if we look at a 4 by 4 square... we can say that the inner parts of the 4 by 4 square are affected
+
+ x x x x
+ x x x x
+ x x x x
+ x x x x
+ */
