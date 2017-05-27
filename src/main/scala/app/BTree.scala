@@ -27,33 +27,55 @@ case class RiverTile(flux: Flux, rivers: List[River]) {
   def addRivers(rs: List[River]): RiverTile = copy(rivers = rs ::: rivers)
 }
 
+case class Point(x: Int, y: Int)
+
 sealed trait BTree[A, B]
-case class Leaf[A, B](index: Int, value: A) extends BTree[A, B]
+case class Leaf[A, B](index: Point, value: A) extends BTree[A, B]
 //can actually annotate this with an interval range
-case class Node[A, B](l: B, r: B) extends BTree[A, B]
+case class Node[A, B]tl: B, tr: B, bl: B, br: B) extends BTree[A, B]
 
 case class Zipped[A](l: Option[A], a: A, r: Option[A])
+
+//er could make a recursive structure for this ... 
+case Edges[A](l: List[A], r: List[A], t: List[A], b: List[A])
+
+
 
 object BTree {
 
   implicit def btreeRecurseFunctor[C]: Functor[BTree[C, ?]] = new Functor[BTree[C, ?]] {
     def map[A, B](tree: BTree[C, A])(f: A => B): BTree[C, B] = tree match {
       case Leaf(i, v) => Leaf(i, v)
-      case Node(l, r) => Node(f(l), f(r))
+      case Node(tl, tr, bl, br) => Node(f(tl), f(tr), f(bl), f(br))
     }
   }
 
-  def build[A](depth: Int)(f: Int => A): ((Int, Int)) => BTree[A, (Int, Int)] = {
-    case (d, i) => if(d < depth) {
-      Node((d + 1, 2 * i - 1), (d + 1, 2 * i))
+  def build[A](depth: Int)(f: Point => A): ((Int, Point)) => BTree[A, (Int, Point)] = {
+    case (d, p) => if(d < depth) {
+      val d1 = d + 1
+      vsl bl = Point(2 * p.x - 1, 2 * p.y -  1)
+      vsl tl = Point(2 * p.x - 1, 2 * p.y)
+      vsl br = Point(2 * p.x, 2 * p.y -  1)
+      vsl tr = Point(2 * p.x, 2 * p.y)
+      Node((d1, tl), (d1, tr), (d1, bl), (d1, br))
     } else {
-      Leaf(i, f(i))
+      Leaf(p, f(p))
     }
   }
 
   def mapValues[A, B, T[_[_]]](f: A => B)(implicit R: CorecursiveT[T]): BTree[A, T[BTree[B, ?]]] => T[BTree[B, ?]] = {
     case Leaf(i, a) => R.embedT(Leaf(i, f(a)))
-    case Node(l, r) => R.embedT(Node(l, r))
+    case Node(tl, tr, bl, br) => R.embedT(Node(tl, tr, bl, br))
+  }
+
+  def edgesHelper[A]: BTree[A, Edges[A]] => Edges[A] = {
+    case Leaf(i, a) => Edges(a, a, a, a)
+    case Node(tl, tr, bl, br) => Edges(tl.l ++ bl.l, tr.r ++ br.r, tl.t ++ tr.t, bl.b ++ br.b)
+  }
+
+  def zipNeighboursHelper[A]: BTree[A, (A, A)] => (A, A) = {
+    case Leaf(i, a) => (a, a)
+    case Node((l, _), (_, r)) => (l, r) 
   }
 
   def left[A]: BTree[A, A] => A = {
@@ -156,6 +178,12 @@ object BTree {
 
       Fix(Node(nextL1, nextR1))
   }
+  //when we encounter a node
+  //look at the edges of each subnode
+  //for the internal edges
+  //advect them to other nodes
+  //add them to the nodes
+  //and then repeat
   
 }
 
@@ -206,4 +234,7 @@ object Playground extends App {
  x x x x
  x x x x
  x x x x
+
+ Maybe this just doesn't scale
+ 
  */
