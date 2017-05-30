@@ -22,11 +22,35 @@ object IntList {
 
 
 object Playground extends App {
+
+  val intList: List[Int] => IntList[List[Int]] = {
+    case scala.collection.immutable.Nil =>
+      println("intlist nil")
+      Nil()
+    case h :: t =>
+      println(s"intlist $h $t")
+      Cons(h, t)
+  }
+
   val list: Fix[IntList] = Fix(Cons(1, Fix(Cons(2, Fix(Cons(3, Fix(Nil())))))))
 
-  val sum: IntList[Int] => Int = {
+  val show: IntList[(Int, String)] => String = {
+    case Nil() => "Nil"
+    case Cons(x, (xx, str)) =>  s"($xx, $x) :: $str"
+  }
+
+  val index: IntList[Int] => Int = {
     case Nil() => 0
-    case Cons(h, t) => h + t
+    case Cons(h, t) => t + 1
+  }
+
+  val sum: IntList[Int] => Int = {
+    case Nil() =>
+      println("sum")
+      0
+    case Cons(h, t) =>
+      println(s"sum $h $t")
+      h + t
   }
 
   val len: IntList[Int] => Int = {
@@ -59,6 +83,10 @@ object Playground extends App {
   val list1: Fix[IntList] = Fix(Cons(1, Fix(Cons(2, Fix(Cons(30, Fix(Nil())))))))
   val result = list1.prepro(small, sum)
   println(result)
+
+
+ val r = list1.zygo(index, show)
+  println(r)
 
   // val result3 = prepro(list1)(small, sum)
   // println(result3)
